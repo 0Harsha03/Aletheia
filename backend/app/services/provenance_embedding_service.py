@@ -160,17 +160,33 @@ async def embed_provenance(
         )
 
     # ------------------------------------------------------------------
-    # 8. Update MongoDB document with embedded image path
+    # 8. Generate pHash of the embedded image (Sprint 4)
+    #    Wrapped in try/except — pHash failure must never block embedding.
     # ------------------------------------------------------------------
+    phash_hex: str | None = None
+    try:
+        from app.services.verification.phash_service import generate_phash
+        phash_hex = generate_phash(embedded_image)
+    except Exception:
+        pass  # Non-fatal; verification will surface a clear error if missing
+
+    strategy_name: str = getattr(strategy, "STRATEGY_NAME", "sequential_lsb")
+
+    # ------------------------------------------------------------------
+    # 9. Update MongoDB document
+    # ------------------------------------------------------------------
+    update_fields: dict = {
+        "embedded_image_path": embedded_path,
+        "embedded_bits":       len(bitstream),
+        "mir":                 mir.to_dict(),
+        "embedding_strategy":  strategy_name,
+    }
+    if phash_hex:
+        update_fields["phash"] = phash_hex
+
     await collection.update_one(
         {"image_id": image_id},
-        {
-            "$set": {
-                "embedded_image_path": embedded_path,
-                "embedded_bits": len(bitstream),
-                "mir": mir.to_dict(),
-            }
-        },
+        {"$set": update_fields},
     )
 
     # ------------------------------------------------------------------

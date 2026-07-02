@@ -2,7 +2,8 @@
 Aletheia — AI Media Provenance Framework
 Sprint 1: Media Registration Engine
 Sprint 2: Provenance Embedding Engine
-Sprint 3: Adaptive Provenance Engine (Extraction + ADPE)
+Sprint 3: Adaptive Provenance Engine
+Sprint 4: Provenance Verification Engine
 
 Entry point for the FastAPI application.
 """
@@ -12,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
-from app.api.routes import registration, embedding, extraction
+from app.api.routes import registration, embedding, extraction, verification
 from app.database.connection import connect_to_mongo, close_mongo_connection
 from app.core.config import settings
 
@@ -23,11 +24,12 @@ from app.core.config import settings
 app = FastAPI(
     title="Aletheia — AI Media Provenance Framework",
     description=(
-        "Sprint 1: Media Registration Engine | "
-        "Sprint 2: Provenance Embedding Engine | "
-        "Sprint 3: Adaptive Provenance Engine"
+        "Sprint 1: Media Registration | "
+        "Sprint 2: Provenance Embedding | "
+        "Sprint 3: Adaptive Provenance Engine | "
+        "Sprint 4: Provenance Verification"
     ),
-    version="3.0.0",
+    version="4.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
 )
@@ -73,9 +75,10 @@ app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads"
 # Routers
 # ---------------------------------------------------------------------------
 
-app.include_router(registration.router, prefix="/api", tags=["Registration"])
-app.include_router(embedding.router,    prefix="/api", tags=["Embedding"])
-app.include_router(extraction.router,   prefix="/api", tags=["Extraction"])
+app.include_router(registration.router,  prefix="/api", tags=["Registration"])
+app.include_router(embedding.router,     prefix="/api", tags=["Embedding"])
+app.include_router(extraction.router,    prefix="/api", tags=["Extraction"])
+app.include_router(verification.router,  prefix="/api", tags=["Verification"])
 
 
 # ---------------------------------------------------------------------------
@@ -90,6 +93,7 @@ async def health():
             "Media Registration Engine",
             "Provenance Embedding Engine",
             "Adaptive Provenance Engine",
+            "Provenance Verification Engine",
         ],
-        "version": "3.0",
+        "version": "4.0",
     }

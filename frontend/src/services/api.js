@@ -94,4 +94,30 @@ export async function extractProvenance(embeddedImageUrl) {
   return data;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   Sprint 4 — Provenance Verification
+   ───────────────────────────────────────────────────────────────────────── */
+
+/**
+ * POST /api/verify
+ *
+ * Uploads an embedded image file to the verification endpoint.
+ * The server extracts the MIR, generates pHash, computes Hamming Distance,
+ * and returns a full verification report.
+ *
+ * @param {File} imageFile - The embedded PNG to verify
+ * @returns {Promise<Object>} - Full verification report
+ */
+export async function verifyMedia(imageFile) {
+  const formData = new FormData();
+  formData.append("file", imageFile);
+
+  const { data } = await api.post("/api/verify", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
+  return data;
+}
+
 export default api;
+
