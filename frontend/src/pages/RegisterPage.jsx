@@ -68,8 +68,10 @@ export default function RegisterPage() {
     setResult(null);
   };
 
-  /* Current active step */
-  const activeStep = result ? 3 : model ? 3 : file ? 2 : 1;
+  /* Current active step:
+     1 = upload, 2 = model select, 3 = register, 4 = embed, 5 = verify
+     After registration we jump to step 4 (embed panel shown in success view) */
+  const activeStep = result ? 4 : model ? 3 : file ? 2 : 1;
 
   return (
     <main className="min-h-[calc(100vh-64px)] flex flex-col">
@@ -78,7 +80,7 @@ export default function RegisterPage() {
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-600/10 border border-brand-500/20 mb-5">
           <ShieldPlus className="w-3.5 h-3.5 text-brand-400" />
           <span className="text-brand-400 text-xs font-semibold tracking-widest uppercase">
-            Sprint 1 &amp; 2
+            Sprint 1, 2 &amp; 3
           </span>
         </div>
 
@@ -90,12 +92,12 @@ export default function RegisterPage() {
         </h1>
 
         <p className="mt-3 text-lg text-slate-500 font-medium tracking-wide">
-          Registration &amp; Provenance Embedding Engine
+          Registration, Embedding &amp; Provenance Extraction
         </p>
 
         <p className="mt-3 max-w-xl mx-auto text-sm text-slate-600 leading-relaxed">
-          Register AI-generated media, then embed a cryptographically-structured
-          Media Identity Record (MIR) into the image using LSB steganography.
+          Register AI-generated media, embed a Media Identity Record (MIR) via
+          LSB steganography, then extract and verify the recovered MIR.
         </p>
 
         {/* Step progress */}
@@ -113,6 +115,10 @@ export default function RegisterPage() {
           <ArrowDown className="w-3 h-3 text-slate-700 rotate-[-90deg] shrink-0" />
           <StepDivider />
           <Step number={4} label="Embed Provenance" active={activeStep >= 4} />
+          <StepDivider />
+          <ArrowDown className="w-3 h-3 text-slate-700 rotate-[-90deg] shrink-0" />
+          <StepDivider />
+          <Step number={5} label="Verify" active={activeStep >= 5} />
         </div>
       </section>
 

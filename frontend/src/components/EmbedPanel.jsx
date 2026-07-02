@@ -3,24 +3,26 @@
  *
  * Shown after successful registration. Allows the user to trigger
  * provenance embedding and then download the embedded PNG.
+ * Sprint 3: once embedding succeeds, VerifyPanel is rendered below
+ * so the user can immediately verify the recovered MIR.
  *
  * States:
- *   idle      → shows "Embed Provenance" button
- *   loading   → shows spinner
- *   success   → shows bit count + download button
- *   error     → shows error message with retry
+ *   idle    → "Embed Provenance" button
+ *   loading → spinner
+ *   success → bit count + download button + VerifyPanel
+ *   error   → error message + retry
  */
 
 import { useState } from "react";
 import {
   Fingerprint,
-  Loader2,
   AlertCircle,
   Download,
   CheckCircle2,
   Binary,
 } from "lucide-react";
 import { embedMedia } from "../services/api";
+import VerifyPanel from "./VerifyPanel";
 
 /* ── Bit counter pill ─────────────────────────────────── */
 function BitBadge({ bits }) {
@@ -63,6 +65,7 @@ export default function EmbedPanel({ imageId }) {
     }
   };
 
+  // Construct the full URL: the Vite proxy rewrites /uploads/* → backend
   const downloadUrl =
     result?.embedded_image
       ? `${import.meta.env.VITE_API_URL ?? "http://localhost:8000"}${result.embedded_image}`
@@ -150,6 +153,9 @@ export default function EmbedPanel({ imageId }) {
             <Download className="w-4 h-4" />
             Download Embedded Image
           </a>
+
+          {/* Sprint 3 — Provenance extraction + verification */}
+          <VerifyPanel downloadUrl={downloadUrl} />
         </div>
       )}
 

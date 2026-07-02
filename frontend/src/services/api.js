@@ -1,6 +1,10 @@
 /**
  * API service layer — all HTTP calls go through here.
  * Keeps components decoupled from axios / endpoint URLs.
+ *
+ * Sprint 1: registerMedia()
+ * Sprint 2: embedMedia()
+ * Sprint 3: extractProvenance()
  */
 
 import axios from "axios";
@@ -11,6 +15,10 @@ const api = axios.create({
   baseURL: BASE_URL,
   timeout: 30_000,
 });
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Sprint 1 — Registration
+   ───────────────────────────────────────────────────────────────────────── */
 
 /**
  * POST /api/register
@@ -31,6 +39,10 @@ export async function registerMedia(file, modelName) {
   return data;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   Sprint 2 — Provenance Embedding
+   ───────────────────────────────────────────────────────────────────────── */
+
 /**
  * POST /api/embed
  *
@@ -45,5 +57,41 @@ export async function embedMedia(imageId) {
   return data;
 }
 
-export default api;
+/* ─────────────────────────────────────────────────────────────────────────
+   Sprint 3 — Provenance Extraction
+   ───────────────────────────────────────────────────────────────────────── */
 
+/**
+ * POST /api/extract
+ *
+ * Fetches the embedded PNG from the backend via the Vite dev proxy, then
+ * uploads it as a multipart file to the extraction endpoint, which reads
+ * the LSB bitstream and recovers the embedded Media Identity Record (MIR).
+ *
+ * @param {string} embeddedImageUrl - Full URL to the embedded PNG
+ *                                    (constructed in EmbedPanel from result.embedded_image)
+ * @returns {Promise<Object>} - { status, strategy_used, mir }
+ */
+export async function extractProvenance(embeddedImageUrl) {
+  // 1. Fetch the embedded image as a binary blob through the Vite proxy
+  const imgResponse = await fetch(embeddedImageUrl);
+  if (!imgResponse.ok) {
+    throw new Error(
+      `Failed to fetch embedded image (HTTP ${imgResponse.status}). ` +
+        "Ensure the backend is running and the image was saved successfully."
+    );
+  }
+  const blob = await imgResponse.blob();
+
+  // 2. Upload the blob to POST /api/extract as a multipart file
+  const formData = new FormData();
+  formData.append("file", blob, "embedded_image.png");
+
+  const { data } = await api.post("/api/extract", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
+  return data;
+}
+
+export default api;

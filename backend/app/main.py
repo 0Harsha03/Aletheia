@@ -2,6 +2,7 @@
 Aletheia — AI Media Provenance Framework
 Sprint 1: Media Registration Engine
 Sprint 2: Provenance Embedding Engine
+Sprint 3: Adaptive Provenance Engine (Extraction + ADPE)
 
 Entry point for the FastAPI application.
 """
@@ -11,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
-from app.api.routes import registration, embedding
+from app.api.routes import registration, embedding, extraction
 from app.database.connection import connect_to_mongo, close_mongo_connection
 from app.core.config import settings
 
@@ -21,8 +22,12 @@ from app.core.config import settings
 
 app = FastAPI(
     title="Aletheia — AI Media Provenance Framework",
-    description="Sprint 1: Media Registration Engine | Sprint 2: Provenance Embedding Engine",
-    version="2.0.0",
+    description=(
+        "Sprint 1: Media Registration Engine | "
+        "Sprint 2: Provenance Embedding Engine | "
+        "Sprint 3: Adaptive Provenance Engine"
+    ),
+    version="3.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
 )
@@ -70,6 +75,7 @@ app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads"
 
 app.include_router(registration.router, prefix="/api", tags=["Registration"])
 app.include_router(embedding.router,    prefix="/api", tags=["Embedding"])
+app.include_router(extraction.router,   prefix="/api", tags=["Extraction"])
 
 
 # ---------------------------------------------------------------------------
@@ -80,6 +86,10 @@ app.include_router(embedding.router,    prefix="/api", tags=["Embedding"])
 async def health():
     return {
         "status": "ok",
-        "engines": ["Media Registration Engine", "Provenance Embedding Engine"],
-        "version": "2.0",
+        "engines": [
+            "Media Registration Engine",
+            "Provenance Embedding Engine",
+            "Adaptive Provenance Engine",
+        ],
+        "version": "3.0",
     }
