@@ -25,11 +25,11 @@ from PIL import Image
 
 from app.services.embedding import (
     EmbeddingStrategy,
-    LSBStrategy,
     build_mir,
     serialize,
     encode,
 )
+from app.services.extraction.adpe_strategy import ADPEStrategy
 from app.core.config import settings
 
 
@@ -82,9 +82,9 @@ async def embed_provenance(
         HTTPException 500: For unexpected I/O or processing errors.
     """
 
-    # Use LSBStrategy as the default — Sprint 3 injects ADPEStrategy here
+    # Use ADPEStrategy as the default (Sprint 5)
     if strategy is None:
-        strategy = LSBStrategy()
+        strategy = ADPEStrategy()
 
     # ------------------------------------------------------------------
     # 1. Fetch registered media document

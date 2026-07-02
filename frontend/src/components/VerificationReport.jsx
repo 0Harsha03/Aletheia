@@ -72,11 +72,36 @@ export default function VerificationReport({ report }) {
               {report.verification}
             </div>
             <p className="text-slate-400 text-sm leading-snug">
-              {report.verification === "AUTHENTIC" && "MIR extracted successfully. pHash matches within tolerance."}
-              {report.verification === "MINOR MODIFICATION" && "MIR recovered. Minor perceptual difference detected."}
-              {report.verification === "MODIFIED" && "MIR recovered, but significant modification detected."}
-              {report.verification === "UNVERIFIED" && "Image has been substantially altered or does not match registry."}
+              {report.observation}
             </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Integrity Assessment ── */}
+      <div className={`glass-card p-5 space-y-4 border-l-2 ${style.ring.replace("border-", "border-l-")}`}>
+        <div className="flex items-center justify-between border-b border-white/[0.05] pb-3">
+          <p className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
+            <Activity className="w-4 h-4 text-slate-400" />
+            Integrity Assessment
+          </p>
+          <span className={`text-sm font-bold px-2.5 py-1 rounded-md bg-white/[0.03] ${style.textColor}`}>
+            Score: {report.integrity_score} / 100
+          </span>
+        </div>
+        
+        <div className="space-y-1.5 pt-1">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-400 font-medium">Multi-Region Recovery Progress</span>
+            <span className={`font-bold ${report.recovery_percentage === 100 ? "text-emerald-400" : "text-amber-400"}`}>
+              {report.recovered_regions} / {report.total_regions} regions ({report.recovery_percentage}%)
+            </span>
+          </div>
+          <div className="h-2 rounded-full bg-white/[0.05] overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-700 ${report.recovery_percentage === 100 ? "bg-emerald-500/60" : "bg-amber-500/60"}`}
+              style={{ width: `${report.recovery_percentage}%` }}
+            />
           </div>
         </div>
       </div>

@@ -19,8 +19,13 @@ class VerifyResponse(BaseModel):
     stored_phash:     str   = Field(..., examples=["a3b4c5d6e7f80192"])
     hamming_distance: int   = Field(..., examples=[3])
     similarity:       float = Field(..., examples=[98.43])
+    recovered_regions: int   = Field(..., examples=[4])
+    total_regions:    int   = Field(..., examples=[4])
+    recovery_percentage: float = Field(..., examples=[100.0])
+    integrity_score:  int   = Field(..., examples=[100])
+    observation:      str   = Field(..., examples=["No tampering detected."])
     verification:     str   = Field(
         ...,
-        description="AUTHENTIC | MINOR MODIFICATION | MODIFIED | UNVERIFIED",
+        description="AUTHENTIC | MODIFIED | UNVERIFIED",
         examples=["AUTHENTIC"],
     )

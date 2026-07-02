@@ -71,6 +71,25 @@ export default function EmbedPanel({ imageId }) {
       ? `${import.meta.env.VITE_API_URL ?? "http://localhost:8000"}${result.embedded_image}`
       : null;
 
+  const handleDownload = async (e) => {
+    e.preventDefault();
+    if (!downloadUrl) return;
+    try {
+      const response = await fetch(downloadUrl);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = "embedded_image.png";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("Failed to download image:", err);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Divider with label */}
@@ -144,15 +163,14 @@ export default function EmbedPanel({ imageId }) {
           <BitBadge bits={result.embedded_bits} />
 
           {/* Download */}
-          <a
-            href={downloadUrl}
-            download="embedded_image.png"
+          <button
+            onClick={handleDownload}
             id="download-embedded-btn"
-            className="btn-primary w-full bg-indigo-600 hover:bg-indigo-500 shadow-indigo-900/40 hover:shadow-indigo-600/30 no-underline"
+            className="btn-primary w-full bg-indigo-600 hover:bg-indigo-500 shadow-indigo-900/40 hover:shadow-indigo-600/30"
           >
             <Download className="w-4 h-4" />
             Download Embedded Image
-          </a>
+          </button>
 
           {/* Sprint 3 — Provenance extraction + verification */}
           <VerifyPanel downloadUrl={downloadUrl} />

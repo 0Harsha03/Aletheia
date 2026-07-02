@@ -23,20 +23,12 @@ from dataclasses import dataclass
 from PIL import Image
 from fastapi import HTTPException
 
-from app.services.extraction import (
-    ExtractionError,
-    read_payload_bitstream,
-    bits_to_bytes,
-    deserialize,
-)
-from app.services.verification.phash_service import generate_phash
 from app.services.verification.hamming_distance import (
     compute_hamming_distance,
     compute_similarity,
-    get_verification_verdict,
-    VERDICT_AUTHENTIC,
-    VERDICT_MINOR_MODIFICATION,
 )
+from app.services.integrity.integrity_service import assess_integrity
+from app.services.provenance_extraction_service import extract_provenance
 
 
 # ---------------------------------------------------------------------------
@@ -58,7 +50,12 @@ class VerificationResult:
     stored_phash:     str
     hamming_distance: int
     similarity:       float
-    verification:     str    # AUTHENTIC | MINOR MODIFICATION | MODIFIED | UNVERIFIED
+    recovered_regions: int
+    total_regions:    int
+    recovery_percentage: float
+    integrity_score:  int
+    observation:      str
+    verification:     str    # AUTHENTIC | MODIFIED | UNVERIFIED
 
 
 # ---------------------------------------------------------------------------
@@ -84,18 +81,15 @@ async def verify_provenance(image: Image.Image, db) -> VerificationResult:
     """
 
     # ------------------------------------------------------------------
-    # 1. Extract MIR using Sprint 3 pipeline (unchanged)
+    # 1. Extract MIR using Sprint 5 multi-region pipeline
     # ------------------------------------------------------------------
-    try:
-        n_bytes, payload_bits = read_payload_bitstream(image)
-        payload_bytes = bits_to_bytes(payload_bits)
-        mir = deserialize(payload_bytes)
-    except ExtractionError as exc:
-        raise HTTPException(
-            status_code=422,
-            detail=f"MIR extraction failed — this image may not contain "
-                   f"Aletheia provenance data. Details: {exc}",
-        ) from exc
+    from app.services.verification.phash_service import generate_phash
+    
+    extraction_result = await extract_provenance(image, db=db)
+    mir = extraction_result.mir
+    recovered_regions = extraction_result.recovered_regions
+    total_regions = extraction_result.total_regions
+    inconsistent = extraction_result.inconsistent
 
     # ------------------------------------------------------------------
     # 2. Generate pHash of the uploaded image
@@ -139,16 +133,20 @@ async def verify_provenance(image: Image.Image, db) -> VerificationResult:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     # ------------------------------------------------------------------
-    # 5. Similarity + verdict
+    # 5. Similarity + Integrity Assessment
     # ------------------------------------------------------------------
     similarity = compute_similarity(distance)
-    verdict    = get_verification_verdict(distance)
-
-    overall_status = (
-        "verified"
-        if verdict in (VERDICT_AUTHENTIC, VERDICT_MINOR_MODIFICATION)
-        else "unverified"
+    
+    assessment = assess_integrity(
+        recovered_regions=recovered_regions,
+        total_regions=total_regions,
+        similarity=similarity,
+        hamming_distance=distance,
+        inconsistent=inconsistent
     )
+
+    overall_status = "verified" if assessment.status in ("AUTHENTIC", "MODIFIED") else "unverified"
+    recovery_percentage = (recovered_regions / total_regions) * 100 if total_regions > 0 else 0
 
     # ------------------------------------------------------------------
     # 6. Return result
@@ -165,5 +163,10 @@ async def verify_provenance(image: Image.Image, db) -> VerificationResult:
         stored_phash=stored_phash,
         hamming_distance=distance,
         similarity=similarity,
-        verification=verdict,
+        recovered_regions=recovered_regions,
+        total_regions=total_regions,
+        recovery_percentage=round(recovery_percentage, 2),
+        integrity_score=assessment.score,
+        observation=assessment.observation,
+        verification=assessment.status,
     )

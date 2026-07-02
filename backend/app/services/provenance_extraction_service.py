@@ -32,6 +32,7 @@ from app.services.extraction import (
     deserialize,
 )
 from app.services.embedding.mir_serializer import MediaIdentityRecord
+from app.services.extraction.region_manager import RegionManager
 
 
 # ---------------------------------------------------------------------------
@@ -50,6 +51,15 @@ class ExtractionResult:
 
     n_payload_bytes: int
     """Number of payload bytes recovered from the image."""
+
+    recovered_regions: int
+    """Number of regions where a valid MIR was recovered."""
+
+    total_regions: int
+    """Total number of regions in the adaptive grid."""
+
+    inconsistent: bool
+    """True if different MIRs were recovered across regions."""
 
     success: bool = True
 
@@ -106,37 +116,41 @@ async def extract_provenance(
     """
 
     # ------------------------------------------------------------------
-    # 1. Read LSB bitstream (header + payload)
+    # 1. Multi-Region Recovery (Sprint 5)
     # ------------------------------------------------------------------
-    try:
-        n_payload_bytes, payload_bits = read_payload_bitstream(image)
-    except ExtractionError as exc:
+    region_manager = RegionManager()
+    regions = region_manager.partition(image)
+    w, h = image.size
+
+    valid_mirs: list[MediaIdentityRecord] = []
+    recovered_bytes = 0
+
+    for region in regions:
+        offset = (region.y * w + region.x) * 3
+        try:
+            n_payload_bytes, payload_bits = read_payload_bitstream(image, offset=offset, region_width=region.width)
+            payload_bytes = bits_to_bytes(payload_bits)
+            # Schema validation implicitly verifies structural integrity
+            mir = deserialize(payload_bytes)
+            valid_mirs.append(mir)
+            recovered_bytes = n_payload_bytes
+        except Exception:
+            continue
+
+    if not valid_mirs:
         raise HTTPException(
             status_code=422,
-            detail=f"Provenance extraction failed: {exc}",
-        ) from exc
+            detail="MIR extraction failed — no valid provenance data found in any region."
+        )
 
     # ------------------------------------------------------------------
-    # 2. Decode payload bits → bytes
+    # 2. Check for Consistency
     # ------------------------------------------------------------------
-    try:
-        payload_bytes = bits_to_bytes(payload_bits)
-    except ExtractionError as exc:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Bit decoding failed: {exc}",
-        ) from exc
-
-    # ------------------------------------------------------------------
-    # 3. Deserialise bytes → MediaIdentityRecord
-    # ------------------------------------------------------------------
-    try:
-        mir = deserialize(payload_bytes)
-    except ExtractionError as exc:
-        raise HTTPException(
-            status_code=422,
-            detail=f"MIR deserialization failed: {exc}",
-        ) from exc
+    first_mir_dict = valid_mirs[0].to_dict()
+    inconsistent = any(mir.to_dict() != first_mir_dict for mir in valid_mirs)
+    
+    # We proceed with the most prominent (first) MIR
+    final_mir = valid_mirs[0]
 
     # ------------------------------------------------------------------
     # 4. Determine embedding strategy
@@ -145,7 +159,7 @@ async def extract_provenance(
     db_strategy = None
     if db is not None:
         try:
-            doc = await db["registered_media"].find_one({"image_id": mir.media_id})
+            doc = await db["registered_media"].find_one({"image_id": final_mir.media_id})
             if doc:
                 db_strategy = doc.get("embedding_strategy")
         except Exception:
@@ -157,8 +171,11 @@ async def extract_provenance(
     # 5. Return structured result
     # ------------------------------------------------------------------
     return ExtractionResult(
-        mir=mir,
+        mir=final_mir,
         strategy_used=strategy_used,
-        n_payload_bytes=n_payload_bytes,
+        n_payload_bytes=recovered_bytes,
+        recovered_regions=len(valid_mirs),
+        total_regions=len(regions),
+        inconsistent=inconsistent,
         success=True,
     )

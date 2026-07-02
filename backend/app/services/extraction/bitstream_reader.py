@@ -75,7 +75,7 @@ def read_raw_lsbs(image: Image.Image, n_bits: int, offset: int = 0) -> list[int]
     return flat[offset:end]
 
 
-def read_payload_bitstream(image: Image.Image) -> tuple[int, list[int]]:
+def read_payload_bitstream(image: Image.Image, offset: int = 0, region_width: int | None = None) -> tuple[int, list[int]]:
     """
     Read the full provenance payload from an LSB-embedded image.
 
@@ -86,6 +86,7 @@ def read_payload_bitstream(image: Image.Image) -> tuple[int, list[int]]:
 
     Args:
         image: PIL Image that was processed by an LSB-based EmbeddingStrategy.
+        offset: Channel index to start reading from (default 0).
 
     Returns:
         Tuple of (n_payload_bytes, payload_bits):
@@ -103,21 +104,34 @@ def read_payload_bitstream(image: Image.Image) -> tuple[int, list[int]]:
     # ------------------------------------------------------------------
     # 1. Read 32-bit header
     # ------------------------------------------------------------------
-    if total_channels < 32:
+    if total_channels - offset < 32:
         raise ExtractionError(
             "Image is too small to contain a valid provenance header "
-            f"(needs ≥ 32 channels, found {total_channels})."
+            f"(needs ≥ 32 channels from offset, found {total_channels - offset})."
         )
 
-    flat_lsbs: list[int] = []
-    for r, g, b in pixels:
-        flat_lsbs.append(r & 1)
-        flat_lsbs.append(g & 1)
-        flat_lsbs.append(b & 1)
+    w, h = image.size
+    row_capacity = (region_width * 3) if region_width else (total_channels)
+    
+    def get_bit(idx: int) -> int:
+        if region_width:
+            row = idx // row_capacity
+            col = idx % row_capacity
+            actual_offset = offset + (row * w * 3) + col
+        else:
+            actual_offset = offset + idx
+            
+        if actual_offset >= total_channels:
+            raise ExtractionError("Out of bounds")
+            
+        pixel_idx = actual_offset // 3
+        channel = actual_offset % 3
+        p = pixels[pixel_idx]
+        return p[channel] & 1
 
     n_bytes = 0
-    for bit in flat_lsbs[:32]:
-        n_bytes = (n_bytes << 1) | bit
+    for i in range(32):
+        n_bytes = (n_bytes << 1) | get_bit(i)
 
     # ------------------------------------------------------------------
     # 2. Sanity-check declared length
@@ -141,11 +155,14 @@ def read_payload_bitstream(image: Image.Image) -> tuple[int, list[int]]:
     payload_bit_count = n_bytes * 8
     total_needed = 32 + payload_bit_count
 
-    if total_channels < total_needed:
+    if total_channels - offset < total_needed:
         raise ExtractionError(
             f"Header declares {n_bytes} payload bytes ({payload_bit_count} bits), "
-            f"but image only has {total_channels - 32} channels after the header."
+            f"but image only has {total_channels - offset - 32} channels after the header."
         )
 
-    payload_bits = flat_lsbs[32: 32 + payload_bit_count]
+    payload_bits = []
+    for i in range(32, 32 + payload_bit_count):
+        payload_bits.append(get_bit(i))
+        
     return n_bytes, payload_bits

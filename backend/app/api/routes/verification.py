@@ -59,5 +59,10 @@ async def verify_media_endpoint(
         stored_phash=result.stored_phash,
         hamming_distance=result.hamming_distance,
         similarity=result.similarity,
+        recovered_regions=result.recovered_regions,
+        total_regions=result.total_regions,
+        recovery_percentage=result.recovery_percentage,
+        integrity_score=result.integrity_score,
+        observation=result.observation,
         verification=result.verification,
     )

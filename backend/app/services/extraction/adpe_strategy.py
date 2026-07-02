@@ -60,10 +60,10 @@ class ADPEStrategy(EmbeddingStrategy):
         )
     """
 
-    STRATEGY_NAME = "adpe_v1_sequential"
+    STRATEGY_NAME = "adpe_v2_distributed"
     """
     Identifies the ADPE variant in stored metadata and API responses.
-    Bump to 'adpe_v2_distributed' when multi-region embedding is activated.
+    Bumped to 'adpe_v2_distributed' for Sprint 5 multi-region embedding.
     """
 
     def __init__(
@@ -110,9 +110,8 @@ class ADPEStrategy(EmbeddingStrategy):
                 f"({len(bitstream)} bits). Use a larger image."
             )
 
-        # 2. Embed sequentially into the full carrier's flat channel array.
-        #    Starting at offset 0 ensures the extraction reader (which also
-        #    starts at offset 0) recovers bits in the exact order they were written.
+        # 2. Embed sequentially into the full carrier's flat channel array
+        #    for EVERY region (Sprint 5 Multi-Region Embedding).
         pixels = list(carrier.getdata())
         flat: list[int] = []
         for r, g, b in pixels:
@@ -120,18 +119,25 @@ class ADPEStrategy(EmbeddingStrategy):
             flat.append(g)
             flat.append(b)
 
-        for idx, bit in enumerate(bitstream):
-            flat[idx] = (flat[idx] & 0xFE) | bit
+        w, h = carrier.size
+        for region in regions:
+            offset = (region.y * w + region.x) * 3
+            if region.channel_capacity < len(bitstream):
+                continue
+            
+            row_capacity = region.width * 3
+            for idx, bit in enumerate(bitstream):
+                row = idx // row_capacity
+                col = idx % row_capacity
+                actual_offset = offset + (row * w * 3) + col
+                if actual_offset < len(flat):
+                    flat[actual_offset] = (flat[actual_offset] & 0xFE) | bit
 
         new_pixels = [
             (flat[i], flat[i + 1], flat[i + 2])
             for i in range(0, len(flat), 3)
         ]
         carrier.putdata(new_pixels)
-
-        # SPRINT-4: for each additional segment from payload_allocator,
-        # compute region_offset = (region.y * image_width + region.x) * 3
-        # and embed that segment's bitstream at flat[region_offset].
 
         return carrier
 
