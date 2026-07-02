@@ -1,0 +1,174 @@
+/**
+ * EmbedPanel — Sprint 2 UI component.
+ *
+ * Shown after successful registration. Allows the user to trigger
+ * provenance embedding and then download the embedded PNG.
+ *
+ * States:
+ *   idle      → shows "Embed Provenance" button
+ *   loading   → shows spinner
+ *   success   → shows bit count + download button
+ *   error     → shows error message with retry
+ */
+
+import { useState } from "react";
+import {
+  Fingerprint,
+  Loader2,
+  AlertCircle,
+  Download,
+  CheckCircle2,
+  Binary,
+} from "lucide-react";
+import { embedMedia } from "../services/api";
+
+/* ── Bit counter pill ─────────────────────────────────── */
+function BitBadge({ bits }) {
+  return (
+    <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+      <Binary className="w-4 h-4 text-indigo-400 shrink-0" strokeWidth={1.8} />
+      <div>
+        <p className="text-xs text-slate-500">Embedded Bits</p>
+        <p className="text-sm font-mono font-semibold text-indigo-300">
+          {bits.toLocaleString()} bits
+          <span className="text-slate-600 ml-1">
+            ({Math.ceil(bits / 8)} bytes)
+          </span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main component ──────────────────────────────────── */
+export default function EmbedPanel({ imageId }) {
+  const [phase, setPhase] = useState("idle"); // idle | loading | success | error
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+
+  const handleEmbed = async () => {
+    setPhase("loading");
+    setError("");
+    try {
+      const data = await embedMedia(imageId);
+      setResult(data);
+      setPhase("success");
+    } catch (err) {
+      const detail =
+        err.response?.data?.detail ??
+        err.message ??
+        "Embedding failed. Please try again.";
+      setError(typeof detail === "string" ? detail : JSON.stringify(detail));
+      setPhase("error");
+    }
+  };
+
+  const downloadUrl =
+    result?.embedded_image
+      ? `${import.meta.env.VITE_API_URL ?? "http://localhost:8000"}${result.embedded_image}`
+      : null;
+
+  return (
+    <div className="space-y-4">
+      {/* Divider with label */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px bg-white/[0.05]" />
+        <span className="text-xs font-semibold text-slate-600 uppercase tracking-widest px-2">
+          Sprint 2 · Provenance Embedding
+        </span>
+        <div className="flex-1 h-px bg-white/[0.05]" />
+      </div>
+
+      {/* ── Idle state ── */}
+      {phase === "idle" && (
+        <div className="space-y-3">
+          <p className="text-xs text-slate-500 text-center leading-relaxed">
+            Embed the Media Identity Record (MIR) into the image using
+            sequential LSB steganography. The result is visually identical
+            to the original.
+          </p>
+          <button
+            id="embed-btn"
+            onClick={handleEmbed}
+            className="btn-primary w-full bg-indigo-600 hover:bg-indigo-500 shadow-indigo-900/40 hover:shadow-indigo-600/30"
+          >
+            <Fingerprint className="w-5 h-5" />
+            Embed Provenance
+          </button>
+        </div>
+      )}
+
+      {/* ── Loading state ── */}
+      {phase === "loading" && (
+        <div className="flex flex-col items-center gap-3 py-4">
+          <div className="relative w-12 h-12">
+            <div className="absolute inset-0 rounded-full border-2 border-indigo-500/20" />
+            <div className="absolute inset-0 rounded-full border-2 border-t-indigo-400 animate-spin" />
+            <div className="absolute inset-1 rounded-full bg-indigo-500/10 flex items-center justify-center">
+              <Fingerprint className="w-4 h-4 text-indigo-400" />
+            </div>
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium text-slate-300">
+              Embedding provenance…
+            </p>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Serialising MIR → encoding bits → LSB embedding
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Success state ── */}
+      {phase === "success" && result && (
+        <div className="animate-slide-up space-y-4">
+          {/* Success header */}
+          <div className="flex items-center gap-3 p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+            <div className="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-4 h-4 text-indigo-400" strokeWidth={1.8} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-indigo-300">
+                Provenance Embedded Successfully
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                MIR written using sequential LSB steganography
+              </p>
+            </div>
+          </div>
+
+          {/* Bit count */}
+          <BitBadge bits={result.embedded_bits} />
+
+          {/* Download */}
+          <a
+            href={downloadUrl}
+            download="embedded_image.png"
+            id="download-embedded-btn"
+            className="btn-primary w-full bg-indigo-600 hover:bg-indigo-500 shadow-indigo-900/40 hover:shadow-indigo-600/30 no-underline"
+          >
+            <Download className="w-4 h-4" />
+            Download Embedded Image
+          </a>
+        </div>
+      )}
+
+      {/* ── Error state ── */}
+      {phase === "error" && (
+        <div className="space-y-3">
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20 animate-fade-in">
+            <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+            <p className="text-sm text-red-300 leading-relaxed">{error}</p>
+          </div>
+          <button
+            onClick={handleEmbed}
+            className="btn-primary w-full bg-indigo-600 hover:bg-indigo-500"
+          >
+            <Fingerprint className="w-4 h-4" />
+            Retry Embedding
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

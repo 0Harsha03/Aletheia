@@ -1,0 +1,186 @@
+"""
+provenance_embedding_service.py — Orchestrates the full provenance embedding pipeline.
+
+Responsibilities:
+  1. Fetch the registered media document from MongoDB by image_id.
+  2. Construct the Media Identity Record (MIR).
+  3. Serialise the MIR to UTF-8 JSON bytes.
+  4. Encode bytes into a binary bitstream (with 32-bit length header).
+  5. Load the original image from disk.
+  6. Delegate embedding to an injected EmbeddingStrategy (LSB by default).
+  7. Save the embedded image as PNG alongside the original.
+  8. Update the MongoDB document with the embedded image path.
+  9. Return a structured result.
+
+Design note — Dependency Injection:
+  The `strategy` parameter accepts any EmbeddingStrategy implementation.
+  Sprint 3 can pass an ADPEStrategy instance here without modifying this file.
+"""
+
+import os
+from dataclasses import dataclass
+
+from fastapi import HTTPException
+from PIL import Image
+
+from app.services.embedding import (
+    EmbeddingStrategy,
+    LSBStrategy,
+    build_mir,
+    serialize,
+    encode,
+)
+from app.core.config import settings
+
+
+# ---------------------------------------------------------------------------
+# Result dataclass
+# ---------------------------------------------------------------------------
+
+@dataclass
+class EmbedResult:
+    """Structured return value from embed_provenance()."""
+
+    embedded_image_path: str
+    """Absolute path to the saved embedded image on disk."""
+
+    download_url: str
+    """Relative URL path (served via /uploads static mount)."""
+
+    embedded_bits: int
+    """Total number of bits written into the carrier image (header + payload)."""
+
+    success: bool = True
+
+
+# ---------------------------------------------------------------------------
+# Service function
+# ---------------------------------------------------------------------------
+
+async def embed_provenance(
+    image_id: str,
+    db,
+    strategy: EmbeddingStrategy | None = None,
+) -> EmbedResult:
+    """
+    Execute the full provenance embedding pipeline.
+
+    Args:
+        image_id: UUID of the registered media asset (from Sprint 1).
+        db:       Motor AsyncIOMotorDatabase instance (injected via FastAPI dependency).
+        strategy: EmbeddingStrategy implementation to use.
+                  Defaults to LSBStrategy (sequential LSB, Sprint 2).
+                  Pass a different strategy to swap algorithms without changing
+                  this function or the API route.
+
+    Returns:
+        EmbedResult with embedded image path, download URL, bit count, and success flag.
+
+    Raises:
+        HTTPException 404: If image_id is not found in the registry.
+        HTTPException 422: If the image is too small to hold the MIR payload.
+        HTTPException 500: For unexpected I/O or processing errors.
+    """
+
+    # Use LSBStrategy as the default — Sprint 3 injects ADPEStrategy here
+    if strategy is None:
+        strategy = LSBStrategy()
+
+    # ------------------------------------------------------------------
+    # 1. Fetch registered media document
+    # ------------------------------------------------------------------
+    collection = db["registered_media"]
+    doc = await collection.find_one({"image_id": image_id})
+
+    if doc is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No registered media found with image_id='{image_id}'.",
+        )
+
+    # ------------------------------------------------------------------
+    # 2. Build MIR from stored provenance fields
+    # ------------------------------------------------------------------
+    mir = build_mir(
+        media_id=doc["image_id"],
+        model_name=doc["model_name"],
+        timestamp=doc["timestamp"],
+        media_type=doc.get("media_type", "image"),
+    )
+
+    # ------------------------------------------------------------------
+    # 3. Serialise MIR → UTF-8 JSON bytes
+    # ------------------------------------------------------------------
+    mir_bytes = serialize(mir)
+
+    # ------------------------------------------------------------------
+    # 4. Encode bytes → binary bitstream (with 32-bit length header)
+    # ------------------------------------------------------------------
+    bitstream = encode(mir_bytes)
+
+    # ------------------------------------------------------------------
+    # 5. Load original image
+    # ------------------------------------------------------------------
+    original_path: str = doc["upload_path"]
+
+    if not os.path.exists(original_path):
+        raise HTTPException(
+            status_code=500,
+            detail=f"Original image file not found on disk: '{original_path}'.",
+        )
+
+    try:
+        original_image = Image.open(original_path)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to open original image: {exc}",
+        )
+
+    # ------------------------------------------------------------------
+    # 6. Embed via injected strategy
+    # ------------------------------------------------------------------
+    try:
+        embedded_image = strategy.embed(original_image, bitstream)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    # ------------------------------------------------------------------
+    # 7. Save embedded image as PNG (lossless — required for LSB integrity)
+    # ------------------------------------------------------------------
+    embedded_filename = f"{image_id}_embedded.png"
+    embedded_path = os.path.join(settings.UPLOAD_DIR, embedded_filename)
+
+    try:
+        embedded_image.save(embedded_path, format="PNG", optimize=False)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save embedded image: {exc}",
+        )
+
+    # ------------------------------------------------------------------
+    # 8. Update MongoDB document with embedded image path
+    # ------------------------------------------------------------------
+    await collection.update_one(
+        {"image_id": image_id},
+        {
+            "$set": {
+                "embedded_image_path": embedded_path,
+                "embedded_bits": len(bitstream),
+                "mir": mir.to_dict(),
+            }
+        },
+    )
+
+    # ------------------------------------------------------------------
+    # 9. Return structured result
+    # ------------------------------------------------------------------
+    download_url = f"/uploads/{embedded_filename}"
+
+    return EmbedResult(
+        embedded_image_path=embedded_path,
+        download_url=download_url,
+        embedded_bits=len(bitstream),
+        success=True,
+    )

@@ -31,4 +31,19 @@ export async function registerMedia(file, modelName) {
   return data;
 }
 
+/**
+ * POST /api/embed
+ *
+ * Triggers provenance embedding for a previously registered image.
+ * The server retrieves the image, builds the MIR, and embeds it via LSB.
+ *
+ * @param {string} imageId - UUID returned by POST /api/register
+ * @returns {Promise<Object>} - { status, embedded_image, embedded_bits }
+ */
+export async function embedMedia(imageId) {
+  const { data } = await api.post("/api/embed", { image_id: imageId });
+  return data;
+}
+
 export default api;
+

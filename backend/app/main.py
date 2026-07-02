@@ -1,6 +1,7 @@
 """
 Aletheia — AI Media Provenance Framework
-Media Registration Engine v1.0
+Sprint 1: Media Registration Engine
+Sprint 2: Provenance Embedding Engine
 
 Entry point for the FastAPI application.
 """
@@ -10,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
-from app.api.routes import registration
+from app.api.routes import registration, embedding
 from app.database.connection import connect_to_mongo, close_mongo_connection
 from app.core.config import settings
 
@@ -20,8 +21,8 @@ from app.core.config import settings
 
 app = FastAPI(
     title="Aletheia — AI Media Provenance Framework",
-    description="Media Registration Engine v1.0",
-    version="1.0.0",
+    description="Sprint 1: Media Registration Engine | Sprint 2: Provenance Embedding Engine",
+    version="2.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
 )
@@ -68,6 +69,7 @@ app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads"
 # ---------------------------------------------------------------------------
 
 app.include_router(registration.router, prefix="/api", tags=["Registration"])
+app.include_router(embedding.router,    prefix="/api", tags=["Embedding"])
 
 
 # ---------------------------------------------------------------------------
@@ -76,4 +78,8 @@ app.include_router(registration.router, prefix="/api", tags=["Registration"])
 
 @app.get("/api/health", tags=["Health"])
 async def health():
-    return {"status": "ok", "engine": "Media Registration Engine", "version": "1.0"}
+    return {
+        "status": "ok",
+        "engines": ["Media Registration Engine", "Provenance Embedding Engine"],
+        "version": "2.0",
+    }

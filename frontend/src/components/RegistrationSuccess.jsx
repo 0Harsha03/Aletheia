@@ -1,8 +1,10 @@
 /**
  * RegistrationSuccess — displays provenance metadata after a successful registration.
+ * Sprint 2: also renders EmbedPanel so the user can immediately embed the MIR.
  */
 
 import { CheckCircle2, Hash, Clock, Cpu, Layers, RefreshCw } from "lucide-react";
+import EmbedPanel from "./EmbedPanel";
 
 function MetaRow({ icon: Icon, label, value, mono }) {
   return (
@@ -40,7 +42,7 @@ export default function RegistrationSuccess({ metadata, onReset }) {
         </div>
       </div>
 
-      {/* Metadata card */}
+      {/* Metadata card — Sprint 1 (unchanged) */}
       <div className="glass-card px-5 py-1 divide-y divide-white/[0.05]">
         <MetaRow
           icon={Hash}
@@ -73,6 +75,9 @@ export default function RegistrationSuccess({ metadata, onReset }) {
           value={`Aletheia v${metadata.framework_version}`}
         />
       </div>
+
+      {/* Sprint 2 — Provenance Embedding panel */}
+      <EmbedPanel imageId={metadata.image_id} />
 
       {/* Reset */}
       <button onClick={onReset} className="btn-primary w-full">

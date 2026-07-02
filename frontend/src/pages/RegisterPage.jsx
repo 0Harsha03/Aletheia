@@ -78,7 +78,7 @@ export default function RegisterPage() {
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-600/10 border border-brand-500/20 mb-5">
           <ShieldPlus className="w-3.5 h-3.5 text-brand-400" />
           <span className="text-brand-400 text-xs font-semibold tracking-widest uppercase">
-            Sprint 1
+            Sprint 1 &amp; 2
           </span>
         </div>
 
@@ -90,16 +90,16 @@ export default function RegisterPage() {
         </h1>
 
         <p className="mt-3 text-lg text-slate-500 font-medium tracking-wide">
-          Media Registration Engine
+          Registration &amp; Provenance Embedding Engine
         </p>
 
         <p className="mt-3 max-w-xl mx-auto text-sm text-slate-600 leading-relaxed">
-          Register AI-generated media assets into the Aletheia provenance registry.
-          Each asset is assigned a unique identifier and immutable timestamp for future verification.
+          Register AI-generated media, then embed a cryptographically-structured
+          Media Identity Record (MIR) into the image using LSB steganography.
         </p>
 
         {/* Step progress */}
-        <div className="flex items-center justify-center gap-2 mt-6">
+        <div className="flex items-center justify-center gap-1 mt-6 flex-wrap">
           <Step number={1} label="Upload Image"    active={activeStep >= 1} />
           <StepDivider />
           <ArrowDown className="w-3 h-3 text-slate-700 rotate-[-90deg] shrink-0" />
@@ -109,6 +109,10 @@ export default function RegisterPage() {
           <ArrowDown className="w-3 h-3 text-slate-700 rotate-[-90deg] shrink-0" />
           <StepDivider />
           <Step number={3} label="Register"        active={activeStep >= 3} />
+          <StepDivider />
+          <ArrowDown className="w-3 h-3 text-slate-700 rotate-[-90deg] shrink-0" />
+          <StepDivider />
+          <Step number={4} label="Embed Provenance" active={activeStep >= 4} />
         </div>
       </section>
 
