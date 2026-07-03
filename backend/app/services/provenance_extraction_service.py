@@ -138,6 +138,25 @@ async def extract_provenance(
             continue
 
     if not valid_mirs:
+        # Try Experimental DCT extraction
+        from app.services.dct.qim_extractor import extract_bitstream as dct_extract
+        try:
+            bitstream = dct_extract(image, q_step=16.0)
+            if len(bitstream) >= 32:
+                n_bytes = 0
+                for bit in bitstream[:32]:
+                    n_bytes = (n_bytes << 1) | bit
+                payload_bits_needed = n_bytes * 8
+                if len(bitstream) >= 32 + payload_bits_needed:
+                    payload_bits = bitstream[32 : 32 + payload_bits_needed]
+                    payload_bytes = bits_to_bytes(payload_bits)
+                    mir = deserialize(payload_bytes)
+                    valid_mirs.append(mir)
+                    recovered_bytes = n_bytes
+        except Exception:
+            pass
+
+    if not valid_mirs:
         raise HTTPException(
             status_code=422,
             detail="MIR extraction failed — no valid provenance data found in any region."

@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
-from app.api.routes import registration, embedding, extraction, verification, dct
+from app.api.routes import registration, embedding, extraction, verification, dct, forensics
 from app.database.connection import connect_to_mongo, close_mongo_connection
 from app.core.config import settings
 
@@ -79,7 +79,8 @@ app.include_router(registration.router,  prefix="/api", tags=["Registration"])
 app.include_router(embedding.router,     prefix="/api", tags=["Embedding"])
 app.include_router(extraction.router,    prefix="/api", tags=["Extraction"])
 app.include_router(verification.router,  prefix="/api", tags=["Verification"])
-app.include_router(dct.router,           prefix="/api/dct", tags=["DCT Experimental"])
+app.include_router(dct.router,           prefix="/api/dct",       tags=["DCT Experimental"])
+app.include_router(forensics.router,     prefix="/api/forensics",  tags=["AI Forensics Engine"])
 
 
 # ---------------------------------------------------------------------------
