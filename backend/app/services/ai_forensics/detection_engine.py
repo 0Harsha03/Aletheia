@@ -127,8 +127,10 @@ class DetectionEngine:
         """
         from app.services.ai_forensics.detectors.foundation_detector import FoundationDetector
         from app.services.ai_forensics.detectors.statistical_detector import StatisticalDetector
+        from app.services.ai_forensics.detectors.artifact_detector import ArtifactDetector
 
         engine = cls(fusion=DetectionFusion(weights=DEFAULT_WEIGHTS))
         engine.register(FoundationDetector())
         engine.register(StatisticalDetector())
+        engine.register(ArtifactDetector())
         return engine

@@ -26,10 +26,10 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 DEFAULT_WEIGHTS: dict[str, float] = {
-    "foundation_clip":    0.65,   # CLIP zero-shot — best generalization
-    "statistical_features": 0.35, # Handcrafted — fast, interpretable baseline
+    "foundation_clip":      0.60,   # CLIP zero-shot — best generalization
+    "statistical_features": 0.20,   # Handcrafted — fast, interpretable baseline
+    "artifact_cv":          0.20,   # Classical CV — texture + edge analysis
     # Future detectors — add entries here, no other code changes needed:
-    # "artifact_cnn":       0.55,
     # "frequency_spectral": 0.50,
     # "semantic_vit":       0.60,
 }
